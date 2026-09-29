@@ -1,0 +1,11 @@
+services:
+  supernode-mann:
+    image: flwr/supernode:1.39.0
+    command:
+      - --superlink=fleet-supergrid.flower.ai:443
+      - --auth-supernode-private-key=/keys/supernode-mann
+      - --allow-runtime-dependency-installation
+    environment:
+      FLWR_MODEL_API_KEY: ${FLWR_MODEL_API_KEY:?Set FLWR_MODEL_API_KEY in .env}
+    volumes:
+      - ./keys:/keys:ro

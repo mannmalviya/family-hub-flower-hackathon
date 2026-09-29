@@ -1,0 +1,22 @@
+services:
+  superlink:
+    image: flwr/superlink:1.39.0
+    command:
+      - --insecure
+      - --host=0.0.0.0
+      - --port=9093
+    environment:
+      FLWR_MODEL_API_KEY: ${FLWR_MODEL_API_KEY:?Set FLWR_MODEL_API_KEY in .env}
+    ports:
+      - "127.0.0.1:9093:9093"
+
+  supernode-mann:
+    image: flwr/supernode:1.39.0
+    command:
+      - --insecure
+      - --superlink=superlink:9092
+      - --allow-runtime-dependency-installation
+    environment:
+      FLWR_MODEL_API_KEY: ${FLWR_MODEL_API_KEY:?Set FLWR_MODEL_API_KEY in .env}
+    depends_on:
+      - superlink
