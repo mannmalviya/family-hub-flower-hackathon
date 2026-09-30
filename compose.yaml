@@ -5,7 +5,9 @@ services:
       - --superlink=fleet-supergrid.flower.ai:443
       - --auth-supernode-private-key=/keys/supernode-mann
       - --allow-runtime-dependency-installation
+      - --node-config=name="Mann"
     environment:
       FLWR_MODEL_API_KEY: ${FLWR_MODEL_API_KEY:?Set FLWR_MODEL_API_KEY in .env}
     volumes:
       - ./keys:/keys:ro
+      - ./data/mann:/data:ro

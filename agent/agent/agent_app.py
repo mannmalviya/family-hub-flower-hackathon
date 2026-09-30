@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import os
+from datetime import date
+from pathlib import Path
 from typing import Any
 
 from flwr.agentapp import AgentApp, AgentSession
 from flwr.app import Context
 from flwr.common.constant import SUPERLINK_NODE_ID
-from openai import OpenAI
 
 MODEL = "openai/gpt-5.6-sol"
 
@@ -81,19 +82,29 @@ def _conversation(agent: AgentSession, context: Context) -> list[dict[str, str]]
 
 
 LEAD_INSTRUCTIONS = """You are the Family Hub assistant.
-Each family member is a SuperNode. Its name is the family member's name.
-To answer a question about someone's schedule:
-1. Call get_nodes to find the family member's node id.
-2. Call push_messages to send your question to that node.
-3. Call pull_messages with the returned message ids and timeout 120.
+Today is {today}.
+The family is Mann, Bro, Dad and Mom. Each one is a SuperNode named after them.
+To answer a question about schedules or medical appointments:
+1. Call get_nodes with sample_size null.
+2. Call push_messages once, with one message per node the question is about,
+   carrying the user's question. Ask every node if the question is about the
+   whole family.
+3. Call pull_messages with all returned message ids and timeout 120.
+Each reply starts with the family member's name, then their schedule.csv and
+medical.csv. Free time is any time not covered by a schedule or medical entry.
 Always set reply_to_message_id to null. Never reply to a reply.
 After pull_messages returns the replies, stop calling tools and answer the user.
 Answer only from the replies. Never guess a schedule."""
 
+DATA_DIR = Path("/data")
+
 
 def _run_on_supernode(agent: AgentSession, context: Context) -> None:
-    """Answer a question from the lead agent. Step 1: fixed test reply."""
-    answer = f"Test reply from node {context.node_id}: I am free all day."
+    """Reply with this family member's name and their CSV files."""
+    parts = [f"Name: {context.node_config['name']}"]
+    for csv_path in sorted(DATA_DIR.glob("*.csv")):
+        parts.append(f"--- {csv_path.name} ---\n{csv_path.read_text()}")
+    answer = "\n".join(parts)
     agent.grid.call(
         {
             "name": "push_reply_message",
@@ -106,6 +117,9 @@ def _run_on_supernode(agent: AgentSession, context: Context) -> None:
 
 def _run_lead(agent: AgentSession, context: Context) -> None:
     """Ask the model, and let it query family members through the Grid."""
+    # Imported here so SuperNodes can run without installing openai.
+    from openai import OpenAI
+
     client = OpenAI(
         base_url=os.environ["FLWR_RUNTIME_BASE_URL"],
         api_key=os.environ["FLWR_RUNTIME_API_KEY"],
@@ -117,7 +131,9 @@ def _run_lead(agent: AgentSession, context: Context) -> None:
     while True:
         stream = client.responses.create(
             model=MODEL,
-            instructions=LEAD_INSTRUCTIONS,
+            instructions=LEAD_INSTRUCTIONS.format(
+                today=date.today().strftime("%A %Y-%m-%d")
+            ),
             input=items,
             tools=tools,
             stream=True,

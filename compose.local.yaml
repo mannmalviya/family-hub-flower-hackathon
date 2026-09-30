@@ -1,22 +1,72 @@
+x-supernode: &supernode
+  image: flwr/supernode:1.39.0
+  environment:
+    FLWR_MODEL_API_KEY: ${FLWR_MODEL_API_KEY:?Set FLWR_MODEL_API_KEY in .env}
+    FLWR_FILESYSTEM_ALLOWED_DIRS: /data
+  depends_on:
+    - superlink
+
 services:
   superlink:
     image: flwr/superlink:1.39.0
     command:
-      - --insecure
+      - --ssl-certfile=/certs/server.pem
+      - --ssl-keyfile=/certs/server.key
+      - --ssl-ca-certfile=/certs/ca.crt
+      - --enable-supernode-auth
       - --host=0.0.0.0
       - --port=9093
     environment:
       FLWR_MODEL_API_KEY: ${FLWR_MODEL_API_KEY:?Set FLWR_MODEL_API_KEY in .env}
+    volumes:
+      - ./certs:/certs:ro
     ports:
       - "127.0.0.1:9093:9093"
 
   supernode-mann:
-    image: flwr/supernode:1.39.0
+    <<: *supernode
     command:
-      - --insecure
       - --superlink=superlink:9092
-      - --allow-runtime-dependency-installation
-    environment:
-      FLWR_MODEL_API_KEY: ${FLWR_MODEL_API_KEY:?Set FLWR_MODEL_API_KEY in .env}
-    depends_on:
-      - superlink
+      - --root-certificates=/certs/ca.crt
+      - --auth-supernode-private-key=/keys/supernode-mann
+      - --node-config=name="Mann"
+    volumes:
+      - ./certs:/certs:ro
+      - ./keys:/keys:ro
+      - ./data/mann:/data:ro
+
+  supernode-bro:
+    <<: *supernode
+    command:
+      - --superlink=superlink:9092
+      - --root-certificates=/certs/ca.crt
+      - --auth-supernode-private-key=/keys/supernode-bro
+      - --node-config=name="Bro"
+    volumes:
+      - ./certs:/certs:ro
+      - ./keys:/keys:ro
+      - ./data/bro:/data:ro
+
+  supernode-dad:
+    <<: *supernode
+    command:
+      - --superlink=superlink:9092
+      - --root-certificates=/certs/ca.crt
+      - --auth-supernode-private-key=/keys/supernode-dad
+      - --node-config=name="Dad"
+    volumes:
+      - ./certs:/certs:ro
+      - ./keys:/keys:ro
+      - ./data/dad:/data:ro
+
+  supernode-mom:
+    <<: *supernode
+    command:
+      - --superlink=superlink:9092
+      - --root-certificates=/certs/ca.crt
+      - --auth-supernode-private-key=/keys/supernode-mom
+      - --node-config=name="Mom"
+    volumes:
+      - ./certs:/certs:ro
+      - ./keys:/keys:ro
+      - ./data/mom:/data:ro
